@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JS Dance 薪資系統</title>
+<style>
+:root{--blue:#4472c4;--bg:#f4f5f7;--line:#d9dde3;--ink:#1f2933;--mute:#6b7785;--warn:#fff4e5;--warnLine:#f0b35c;--bad:#c0392b;--ok:#1e8e3e;--yellow:#ffff00}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+header{background:#fff;border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header h1{font-size:17px;margin:0 10px 0 0}
+header .sp{flex:1}
+button,.btn{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;cursor:pointer}
+button:hover{background:#f0f3f8}
+button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+button.primary:hover{background:#3a63ab}
+button.danger{color:var(--bad);border-color:#e6b8b3}
+input,select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;min-width:0}
+#tabs{display:flex;gap:4px;padding:10px 16px 0;overflow-x:auto;background:var(--bg);border-bottom:1px solid var(--line)}
+#tabs button{border-radius:8px 8px 0 0;border-bottom:none;white-space:nowrap;background:#e9ecf1}
+#tabs button.on{background:#fff;font-weight:700;color:var(--blue);border-color:var(--line)}
+main{padding:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.stats{display:flex;gap:18px;flex-wrap:wrap;color:var(--mute)}
+.stats b{color:var(--ink);font-size:16px}
+.warnbox{background:var(--warn);border:1px solid var(--warnLine);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.warnbox summary{cursor:pointer;font-weight:700}
+.warnbox ul{margin:8px 0 0;padding-left:20px}
+.warnbox li{cursor:pointer;margin:2px 0}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:center;white-space:nowrap}
+th{background:var(--blue);color:#fff;position:sticky;top:0}
+td.l{text-align:left;white-space:normal;min-width:160px}
+tr.row{cursor:pointer}
+tr.row:hover td{background:#eef3fb}
+tr.bad td{background:var(--warn)}
+tr.off td{color:var(--mute)}
+.tbl{overflow:auto;max-height:68vh;border:1px solid var(--line);border-radius:8px}
+.mini th{background:#8a97aa}
+.mini td{cursor:pointer}
+.mini tr:hover td{background:#eef3fb}
+.slip{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;max-width:1000px}
+.slip h2{text-align:center;margin:0 0 12px;font-size:20px}
+.slipHead{display:grid;grid-template-columns:1fr 1fr auto;gap:8px 20px;margin-bottom:12px;align-items:start}
+.slipHead dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+.slipHead dt{font-weight:700}
+.slipHead dd{margin:0}
+.total{background:var(--yellow);border:1px solid #999;padding:10px 16px;text-align:center;font-weight:700;font-size:18px;min-width:130px}
+.total small{display:block;font-size:12px;font-weight:700}
+.actions{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.overlay{position:fixed;inset:0;background:rgba(20,25,33,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:12px}
+.overlay.hidden{display:none}
+.dlg{background:#fff;border-radius:12px;padding:18px;width:min(520px,100%);max-height:94vh;overflow:auto}
+.dlg h3{margin:0 0 12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute)}
+.grid label.full{grid-column:1/-1}
+.grid input,.grid select{color:var(--ink);font-size:14px}
+.dlg .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:8px;z-index:99;display:none;max-width:90vw}
+.muted{color:var(--mute)}
+@media print{
+  body *{visibility:hidden}
+  #slipPrint,#slipPrint *{visibility:visible}
+  #slipPrint{position:absolute;left:0;top:0;width:100%;border:none}
+  .actions{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>JS DANCE 薪資系統</h1>
+  <label>計薪月份 <input type="month" id="month"></label>
+  <button id="btnReload">重新整理</button>
+  <button id="btnAdd">＋ 新增一列</button>
+  <span class="sp"></span>
+  <button id="btnExportAll" class="primary">匯出全部老師 Excel</button>
+  <button id="btnLogout">登出</button>
+</header>
+<nav id="tabs"></nav>
+<main id="main"><p class="muted">載入中…</p></main>
+
+<div id="login" class="overlay hidden">
+  <form class="dlg" id="loginForm">
+    <h3>請輸入密碼</h3>
+    <p class="muted" id="loginMsg">與 Apps Script「設定 API 密碼」的是同一組。</p>
+    <input type="password" id="loginToken" style="width:100%" autocomplete="current-password">
+    <div class="btns"><button class="primary" type="submit">登入</button></div>
+  </form>
+</div>
+
+<div id="modal" class="overlay hidden">
+  <form class="dlg" id="editForm">
+    <h3 id="editTitle">編輯</h3>
+    <div class="grid">
+      <label>日期<input type="date" id="fDate" required></label>
+      <label>開課狀態
+        <select id="fStatus"><option>開課</option><option>停課</option><option>代課</option><option>私課</option></select>
+      </label>
+      <label>開始時間<input type="time" id="fStart"></label>
+      <label>結束時間<input type="time" id="fEnd"></label>
+      <label class="full">課程名稱（代課請保留《XX老師代課》；包班請寫「包班」）<input type="text" id="fCourse" required></label>
+      <label class="full">老師<input type="text" id="fTeacher" list="teacherList"></label>
+      <label>預約人數<input type="number" id="fRes" min="0"></label>
+      <label>出席人數<input type="number" id="fAtt" min="0"></label>
+      <label>缺席人數<input type="number" id="fAbs" min="0"></label>
+      <label>遲退人數（已取消）<input type="number" id="fLate" min="0"></label>
+    </div>
+    <p class="muted" style="margin:10px 0 0">預約人數 ＝ 出席 ＋ 缺席 ＋ 遲退。停課會自動全部算 0；包班固定 1800，不看時間與人數。</p>
+    <datalist id="teacherList"></datalist>
+    <div class="btns">
+      <button type="button" id="btnDelete" class="danger" style="margin-right:auto">刪除</button>
+      <button type="button" id="btnCancel">取消</button>
+      <button type="submit" class="primary">儲存</button>
+    </div>
+  </form>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script>
+// ====== 只需要改這一行：貼上 Apps Script 部署後的網址（結尾是 /exec）======
+const API_URL = 'https://script.google.com/macros/s/AKfycbxMVG9HsBxVvX62brL1comId3VkVY1W6Bj6W4NRnUSznxeYh7PDO3eJWO2UJa7kNI7o/exec';
+
+// 不需要密碼就維持 false；之後想加密碼改成 true（後端也要執行「設定 API 密碼」）
+const REQUIRE_PASSWORD = false;
+
+/*ENGINE_START*/
+// ================================================================
+// 薪資計算引擎（純函式，不碰網頁）
+// 判斷順序：停課 → 包班 → 雅詩成人芭蕾 → 一般級距（林佑真／專攻班用 A+）
+// 遲退 = 17fit 的「已取消」；預約人數包含遲退；遲退只記錄、不計薪
+// ================================================================
+const BASE_FEE_SCHEDULE = {
+  '1':   { 'A':  {0:0,1:500,2:600,3:600,4:700,5:800,'6-9':800,'10-19':900,'20+':1000},
+           'A+': {0:0,1:700,2:800,3:800,4:1000,5:1200,'6-9':1200,'10-19':1300,'20+':1400} },
+  '1.5': { 'A':  {0:0,1:700,2:800,3:800,4:900,5:1000,'6-9':1000,'10-19':1100,'20+':1200},
+           'A+': {0:0,1:1000,2:1100,3:1200,4:1300,5:1500,'6-9':1500,'10-19':1600,'20+':1700} },
+  '2':   { 'A':  {0:0,1:1000,2:1200,3:1200,4:1400,5:1600,'6-9':1600,'10-19':1700,'20+':1800},
+           'A+': {0:0,1:1400,2:1600,3:1600,4:2000,5:2400,'6-9':2400,'10-19':2500,'20+':2600} }
+};
+const CFG = {
+  PRIVATE_FEE: 1800,
+  BALLET_KEYWORD: '成人芭蕾', BALLET_TEACHER: '雅詩', BALLET_FEE: {'1':1000,'1.5':1500},
+  LIN_TEACHER: '林佑真',
+  ALLOWED_HOURS: [1, 1.5, 2],
+  STATUSES: ['開課', '停課', '代課', '私課']
+};
+
+function normName(s){ return String(s==null?'':s).trim().replace(/老師$/,'').toLowerCase(); }
+function toNum(v){ if(v===''||v===null||v===undefined||v==='-') return null; const n=Number(v); return isNaN(n)?null:n; }
+function hoursOf(start,end){
+  const a=/^(\d{1,2}):(\d{2})/.exec(start||''), b=/^(\d{1,2}):(\d{2})/.exec(end||'');
+  if(!a||!b) return null;
+  let m=(+b[1]*60+ +b[2])-(+a[1]*60+ +a[2]); if(m<0) m+=1440;
+  return m/60;
+}
+function calculateFee(hours, level, n){
+  if(n===0) return {baseFee:0,bonus:0,totalFee:0};
+  const table=BASE_FEE_SCHEDULE[String(hours)];
+  if(!table||!table[level]) return {baseFee:'錯誤',bonus:'錯誤',totalFee:'錯誤'};
+  const f=table[level]; let base=0, bonus=0;
+  if(n<=5) base=f[n]; else if(n<=9) base=f['6-9']; else if(n<=19) base=f['10-19']; else base=f['20+'];
+  if(n>=6) bonus=(n-5)*50;                      // 第 6 人起每人 +50，無上限
+  return {baseFee:base, bonus:bonus, totalFee:(typeof base==='number')?base+bonus:'錯誤'};
+}
+// 課名同時有《台中班》《Steven老師代課》時，只抓代課那一組
+function subTeacher(course){
+  const m=String(course).match(/《([^《》]+?)(?:老師)?代課》/);
+  return m? m[1].trim().replace(/老師$/,'') : '';
+}
+function buildTeacherMap(teachers){ const m={}; (teachers||[]).forEach(function(n){ const s=String(n).trim(); if(s) m[normName(s)]=s; }); return m; }
+function makeCtx(merges, teachers){
+  const teacherMap=buildTeacherMap(teachers), known={};
+  Object.keys(teacherMap).forEach(function(k){ known[k]=true; });
+  (merges||[]).forEach(function(r){ known[normName(r.actual)]=true; });
+  return {merges:merges||[], teacherMap:teacherMap, known:known, hasTeacherList:Object.keys(teacherMap).length>0};
+}
+// 這堂課的薪資算給誰：看實際授課老師 + 課程所屬月份，套用併單設定
+function resolvePayee(instructor, dateStr, ctx){
+  const key=normName(instructor); if(!key) return '';
+  const month=String(dateStr).slice(0,7);
+  let payee=String(instructor).trim().replace(/老師$/,'');
+  for(let i=0;i<ctx.merges.length;i++){
+    const r=ctx.merges[i];
+    if(normName(r.actual)!==key) continue;
+    if(r.from && month<r.from) continue;
+    if(r.to && month>r.to) continue;
+    payee=r.payee; break;
+  }
+  return ctx.teacherMap[normName(payee)]||payee;
+}
+
+function computeRow(r, ctx){
+  const course=String(r.course||'').trim();
+  const rawStatus=String(r.status||'').trim()||'開課';
+  let status=rawStatus;
+  const wasSuspended=(status==='停課');
+  const isPrivate=(status==='私課'||course.indexOf('包班')>-1);
+  const sub=subTeacher(course);
+  let instructor=String(r.teacher||'').trim().replace(/老師$/,'');
+  if(sub){ instructor=sub; if(!wasSuspended&&!isPrivate) status='代課'; }
+  if(isPrivate&&!wasSuspended) status='私課';
+
+  const hours=isPrivate?1:hoursOf(r.start,r.end);
+  let reserved=toNum(r.reserved), attend=toNum(r.attend), absent=toNum(r.absent), late=toNum(r.late);
+  let level=(course.indexOf('專攻班')>-1||normName(instructor)===normName(CFG.LIN_TEACHER))?'A+':'A';
+  const isBallet=course.indexOf(CFG.BALLET_KEYWORD)>-1&&normName(instructor)===normName(CFG.BALLET_TEACHER);
+
+  let base=0, bonus=0, total=0, countsHidden=false;
+  if(status==='停課'){ reserved=attend=absent=late=0; }
+  else if(isPrivate){ base=CFG.PRIVATE_FEE; total=base; level='-'; countsHidden=true; }
+  else if(hours===null){ base=bonus=total='錯誤'; }
+  else if(isBallet){
+    const fee=CFG.BALLET_FEE[String(hours)]; level='-';
+    if(fee===undefined){ base=bonus=total='錯誤'; } else { base=fee; total=fee; }
+  } else {
+    const f=calculateFee(hours, level, attend==null?0:attend);
+    base=f.baseFee; bonus=f.bonus; total=f.totalFee;
+  }
+
+  const payee=resolvePayee(instructor, r.date, ctx);
+  const issues=[];
+  if(!instructor) issues.push('沒有老師');
+  else if(ctx.hasTeacherList&&!ctx.known[normName(instructor)]) issues.push('老師不在「老師名單」或「併單設定」，請決定要獨立出單還是併單');
+  if(CFG.STATUSES.indexOf(rawStatus)===-1) issues.push('開課狀態「'+rawStatus+'」不認得');
+  if(status!=='停課'&&status!=='私課'){
+    if([reserved,attend,absent,late].some(function(v){return v===null;})) issues.push('預約／出席／缺席／遲退有空白');
+    else if(reserved!==attend+absent+late) issues.push('預約 '+reserved+' ≠ 出席 '+attend+' ＋ 缺席 '+absent+' ＋ 遲退 '+late+'（＝'+(attend+absent+late)+'）');
+    if(hours===null) issues.push('沒有開始／結束時間');
+    else if(CFG.ALLOWED_HOURS.indexOf(hours)===-1) issues.push('時數 '+hours+' 不是 1／1.5／2');
+  }
+  if(typeof total!=='number') issues.push('薪資計算失敗');
+
+  const timeText=(isPrivate&&!(r.start&&r.end))?'-':((r.start||'')+'-'+(r.end||''));
+  return {key:r.key, date:r.date, start:r.start||'', end:r.end||'', timeText:timeText, course:course,
+    teacher:instructor, status:status, hours:hours, level:level, reserved:reserved, attend:attend,
+    absent:absent, late:late, base:base, bonus:bonus, total:total, payee:payee, issues:issues, countsHidden:countsHidden, raw:r};
+}
+
+function sortRows(rows){
+  return rows.slice().sort(function(a,b){
+    const pa=a.status==='私課'?1:0, pb=b.status==='私課'?1:0;
+    if(pa!==pb) return pa-pb;
+    if(a.date!==b.date) return a.date<b.date?-1:1;
+    return String(a.start).localeCompare(String(b.start));
+  });
+}
+function groupPayees(computed){
+  const m={};
+  computed.forEach(function(r){
+    if(!r.payee) return;
+    const k=normName(r.payee);
+    (m[k]=m[k]||{key:k,name:r.payee,rows:[]}).rows.push(r);
+  });
+  return Object.keys(m).map(function(k){
+    const g=m[k];
+    g.total=g.rows.reduce(function(s,r){return s+(typeof r.total==='number'?r.total:0);},0);
+    return g;
+  }).sort(function(a,b){return a.name.localeCompare(b.name,'zh-Hant');});
+}
+function slipFor(group){
+  const rows=sortRows(group.rows);
+  const c={open:0,suspend:0,sub:0,priv:0,total:0};
+  rows.forEach(function(r){
+    if(r.status==='停課') c.suspend++; else if(r.status==='代課') c.sub++; else if(r.status==='私課') c.priv++; else c.open++;
+    if(typeof r.total==='number') c.total+=r.total;
+  });
+  return {name:group.name, rows:rows, open:c.open, suspend:c.suspend, sub:c.sub, priv:c.priv, total:c.total};
+}
+function computeAll(rows, merges, teachers){
+  const ctx=makeCtx(merges,teachers);
+  const computed=rows.map(function(r){return computeRow(r,ctx);});
+  return {computed:computed, groups:groupPayees(computed)};
+}
+/*ENGINE_END*/
+
+// ================================================================
+// 網頁
+// ================================================================
+const $ = function(id){ return document.getElementById(id); };
+const esc = function(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); };
+function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
+function lsSet(k,v){ try{ if(v) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
+function defaultMonth(){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
+
+const S = {token:lsGet('jsd_token'), month:lsGet('jsd_month')||defaultMonth(), rows:[], merges:[], teachers:[], computed:[], groups:[], tab:'__all__', editing:null};
+
+// ---- JSONP（避開 GitHub Pages / 本機開檔的 CORS 問題）----
+function api(action, params){
+  return new Promise(function(resolve,reject){
+    const cb='jsd_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
+    const q=new URLSearchParams(Object.assign({action:action, token:S.token, callback:cb}, params||{}));
+    const s=document.createElement('script');
+    const timer=setTimeout(function(){ cleanup(); reject(new Error('連線逾時，請確認網址與部署權限（要設「所有人」）')); },25000);
+    function cleanup(){ clearTimeout(timer); try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(s.parentNode) s.parentNode.removeChild(s); }
+    window[cb]=function(d){ cleanup(); if(d&&d.ok) resolve(d); else reject(new Error((d&&d.error)||'未知錯誤')); };
+    s.onerror=function(){ cleanup(); reject(new Error('無法連線到後端')); };
+    s.src=API_URL+'?'+q.toString();
+    document.head.appendChild(s);
+  });
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(function(){t.style.display='none';},3500); }
+function fmt(n){ return typeof n==='number'?n.toLocaleString('en-US'):esc(n); }
+
+// ---- 讀取 / 重算 ----
+async function load(){
+  if(REQUIRE_PASSWORD && !S.token){ showLogin(''); return; }
+  $('main').innerHTML='<p class="muted">讀取中…</p>';
+  try{
+    const d=await api('list',{month:S.month});
+    S.rows=d.rows; S.merges=d.merges; S.teachers=d.teachers;
+    recompute(); render();
+  }catch(e){
+    if(/密碼/.test(e.message)){ S.token=''; lsSet('jsd_token',''); showLogin(e.message); }
+    else { $('main').innerHTML='<div class="warnbox">'+esc(e.message)+'</div>'; }
+  }
+}
+function recompute(){
+  const r=computeAll(S.rows,S.merges,S.teachers);
+  S.computed=r.computed; S.groups=r.groups;
+  if(S.tab!=='__all__'&&!S.groups.some(function(g){return g.key===S.tab;})) S.tab='__all__';
+  $('teacherList').innerHTML=S.teachers.map(function(t){return '<option value="'+esc(t)+'">';}).join('');
+}
+
+// ---- 畫面 ----
+function render(){ renderTabs(); S.tab==='__all__'?renderAll():renderSlip(); }
+function renderTabs(){
+  const bad=S.computed.filter(function(r){return r.issues.length;}).length;
+  let h='<button data-tab="__all__" class="'+(S.tab==='__all__'?'on':'')+'">總表'+(bad?' ⚠'+bad:'')+'</button>';
+  S.groups.forEach(function(g){ h+='<button data-tab="'+esc(g.key)+'" class="'+(S.tab===g.key?'on':'')+'">'+esc(g.name)+'</button>'; });
+  $('tabs').innerHTML=h;
+}
+function renderAll(){
+  const c=S.computed, bad=c.filter(function(r){return r.issues.length;});
+  const total=c.reduce(function(s,r){return s+(typeof r.total==='number'?r.total:0);},0);
+  let h='<div class="card stats"><span>本月課程 <b>'+c.length+'</b> 堂</span><span>老師 <b>'+S.groups.length+'</b> 位</span><span>薪資合計 <b>NT$'+fmt(total)+'</b></span><span>待處理 <b style="color:'+(bad.length?'var(--bad)':'var(--ok)')+'">'+bad.length+'</b> 項</span></div>';
+  if(bad.length){
+    h+='<details class="warnbox" open><summary>資料檢查：有 '+bad.length+' 堂課需要確認（點一下可直接修改）</summary><ul>';
+    bad.forEach(function(r){ h+='<li data-edit="'+esc(r.key)+'">'+esc(r.date)+' '+esc(r.timeText)+' '+esc(r.course)+'（'+esc(r.teacher||'無老師')+'）— '+esc(r.issues.join('；'))+'</li>'; });
+    h+='</ul></details>';
+  }
+  h+='<div class="card"><b>各老師本月薪資</b><div class="tbl" style="margin-top:8px;max-height:30vh"><table class="mini"><tr><th>老師</th><th>堂數</th><th>薪資總額</th></tr>';
+  S.groups.forEach(function(g){ h+='<tr data-tab="'+esc(g.key)+'"><td>'+esc(g.name)+'</td><td>'+g.rows.length+'</td><td>'+fmt(g.total)+'</td></tr>'; });
+  h+='</table></div></div>';
+  h+='<div class="card"><b>總表</b> <span class="muted">（點任一列可修改或刪除）</span><div class="tbl" style="margin-top:8px"><table><tr><th>日期</th><th>時間</th><th>時數</th><th>課程名稱</th><th>老師</th><th>薪資歸屬</th><th>狀態</th><th>預約</th><th>出席</th><th>缺席</th><th>遲退</th><th>底薪</th><th>獎金</th><th>總額</th><th></th></tr>';
+  sortRows(c).forEach(function(r){
+    const n=function(v){return r.countsHidden?'-':(v==null?'':v);};
+    h+='<tr class="row'+(r.issues.length?' bad':'')+(r.status==='停課'?' off':'')+'" data-edit="'+esc(r.key)+'"><td>'+esc(r.date)+'</td><td>'+esc(r.timeText)+'</td><td>'+(r.hours==null?'':r.hours)+'</td><td class="l">'+esc(r.course)+'</td><td>'+esc(r.teacher)+'</td><td>'+esc(r.payee)+'</td><td>'+esc(r.status)+'</td><td>'+n(r.reserved)+'</td><td>'+n(r.attend)+'</td><td>'+n(r.absent)+'</td><td>'+n(r.late)+'</td><td>'+fmt(r.base)+'</td><td>'+fmt(r.bonus)+'</td><td><b>'+fmt(r.total)+'</b></td><td title="'+esc(r.issues.join('；'))+'">'+(r.issues.length?'⚠':'')+'</td></tr>';
+  });
+  h+='</table></div></div>';
+  $('main').innerHTML=h;
+}
+function periodLabel(){ return S.month; }
+function slipRowCells(r){
+  const n=function(v){return r.countsHidden?'-':(v==null?'':v);};
+  return [r.date.replace(/-/g,'/'), r.timeText, r.hours==null?'':r.hours, r.course, r.status, n(r.reserved), n(r.attend), n(r.absent), n(r.late), r.base, r.bonus, r.total];
+}
+function renderSlip(){
+  const g=S.groups.find(function(x){return x.key===S.tab;}); if(!g){ renderAll(); return; }
+  const s=slipFor(g);
+  let h='<div class="actions"><button class="primary" data-act="exportOne">匯出此老師 Excel</button><button data-act="print">列印 / 存成 PDF</button></div>';
+  h+='<div class="slip" id="slipPrint"><h2>JS DANCE 薪資明細表</h2><div class="slipHead"><dl><dt>場館</dt><dd>JS DANCE GALLERY</dd><dt>老師姓名</dt><dd>'+esc(s.name)+'</dd><dt>計薪期間</dt><dd>'+esc(periodLabel())+'</dd></dl><dl><dt>開課次數</dt><dd>'+s.open+'</dd><dt>停課次數</dt><dd>'+s.suspend+'</dd><dt>代課次數</dt><dd>'+s.sub+'</dd><dt>私課次數</dt><dd>'+s.priv+'</dd></dl><div class="total"><small>總薪資</small>NT$'+fmt(s.total)+'</div></div>';
+  h+='<div class="tbl" style="max-height:none"><table><tr>'+['日期','時間','時數','課程名稱','開課狀態','預約人數','出席人數','缺席人數','遲退人數','薪資','獎金','總額'].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr>';
+  s.rows.forEach(function(r){
+    const cells=slipRowCells(r);
+    h+='<tr class="'+(r.issues.length?'bad':'')+'">'+cells.map(function(v,i){return '<td'+(i===3?' class="l"':'')+'>'+(i>=9?fmt(v):esc(v))+'</td>';}).join('')+'</tr>';
+  });
+  h+='</table></div></div>';
+  $('main').innerHTML=h;
+}
+
+// ---- 匯出 Excel（格式比照現有薪資單）----
+function safeSheetName(n){ return String(n).replace(/[\\\/\*\[\]:\?]/g,'').slice(0,31)||'未命名'; }
+function addSlipSheet(wb, slip, period, usedNames){
+  let name=safeSheetName(slip.name), i=2; while(usedNames[name]){ name=safeSheetName(slip.name).slice(0,28)+'_'+(i++); } usedNames[name]=true;
+  const ws=wb.addWorksheet(name,{views:[{state:'frozen',ySplit:6}]});
+  [12.5,15.5,6.5,32.8,10.8,9,9,9,9,9,9,10].forEach(function(w,i){ ws.getColumn(i+1).width=w; });
+  const center={horizontal:'center',vertical:'middle'};
+  const thin={style:'thin',color:{argb:'FF999999'}}, border={top:thin,left:thin,bottom:thin,right:thin};
+  ws.mergeCells('A1:L1'); const t=ws.getCell('A1'); t.value='JS DANCE 薪資明細表'; t.font={bold:true,size:16,name:'微軟正黑體'}; t.alignment=center; ws.getRow(1).height=22;
+  const lab=function(a,v){ const c=ws.getCell(a); c.value=v; c.font={bold:true,size:10,name:'Arial'}; c.alignment=center; };
+  const val=function(a,v){ const c=ws.getCell(a); c.value=v; c.font={size:10,name:'Arial'}; c.alignment=center; };
+  lab('A2','場館'); val('B2','JS DANCE GALLERY'); lab('A3','老師姓名'); val('B3',slip.name); lab('A4','計薪期間'); val('B4',period);
+  lab('G2','開課次數'); val('H2',slip.open); lab('I2','停課次數'); val('J2',slip.suspend);
+  lab('G3','代課次數'); val('H3',slip.sub);  lab('I3','私課次數'); val('J3',slip.priv);
+  lab('K2','總薪資');
+  ws.mergeCells('K3:L4'); const tc=ws.getCell('K3'); tc.value=slip.total; tc.numFmt='"NT$"#,##0'; tc.font={bold:true,size:12,name:'Arial'}; tc.alignment=center;
+  ['K3','L3','K4','L4'].forEach(function(a){ ws.getCell(a).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}}; });
+  ['日期','時間','時數','課程名稱','開課狀態','預約人數','出席人數','缺席人數','遲退人數','薪資','獎金','總額'].forEach(function(h,i){
+    const c=ws.getCell(6,i+1); c.value=h; c.font={bold:true,color:{argb:'FFFFFFFF'},size:11,name:'Arial'};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF4472C4'}}; c.alignment=center; c.border=border;
+  });
+  slip.rows.forEach(function(r,ri){
+    slipRowCells(r).forEach(function(v,ci){
+      const c=ws.getCell(7+ri,ci+1); c.value=v; c.font={size:10,name:'Arial'}; c.alignment=center; c.border=border;
+    });
+  });
+}
+function download(blob,name){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
+}
+async function exportSlips(groups, fileName){
+  if(typeof ExcelJS==='undefined'){ toast('Excel 匯出元件沒有載入（需要網路連到 cdn.jsdelivr.net）'); return; }
+  const wb=new ExcelJS.Workbook(), used={};
+  groups.forEach(function(g){ addSlipSheet(wb, slipFor(g), periodLabel(), used); });
+  const buf=await wb.xlsx.writeBuffer();
+  download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), fileName);
+  toast('已匯出：'+fileName);
+}
+function monthParts(){ const p=S.month.split('-'); return {y:p[0], m:+p[1]}; }
+function exportOne(){
+  const g=S.groups.find(function(x){return x.key===S.tab;}); if(!g) return;
+  return exportSlips([g], g.name+'老師_'+monthParts().m+'月份薪資明細.xlsx');
+}
+function exportAll(){
+  if(!S.groups.length){ toast('這個月沒有資料'); return; }
+  const bad=S.computed.filter(function(r){return r.issues.length;}).length;
+  if(bad && !confirm('還有 '+bad+' 堂課的資料檢查沒過，可能算錯或漏算。\n要繼續匯出嗎？')) return;
+  const p=monthParts();
+  return exportSlips(S.groups, p.y+'年'+p.m+'月_JS_Dance_薪資明細表.xlsx');
+}
+
+// ---- 編輯 / 新增 / 刪除 ----
+function openEdit(key){
+  const r=key?S.computed.find(function(x){return x.key===key;}):null;
+  S.editing=r?r.key:null;
+  $('editTitle').textContent=r?'編輯這堂課':'新增一列（例如停課、包班、補登）';
+  const raw=r?r.raw:{date:S.month+'-01',start:'',end:'',course:'',teacher:'',status:'開課',reserved:'',attend:'',absent:'',late:''};
+  $('fDate').value=raw.date; $('fStart').value=raw.start; $('fEnd').value=raw.end; $('fCourse').value=raw.course;
+  $('fTeacher').value=raw.teacher; $('fStatus').value=raw.status||'開課';
+  $('fRes').value=raw.reserved; $('fAtt').value=raw.attend; $('fAbs').value=raw.absent; $('fLate').value=raw.late;
+  $('btnDelete').style.display=r?'':'none';
+  $('modal').classList.remove('hidden');
+}
+function closeEdit(){ $('modal').classList.add('hidden'); }
+async function saveEdit(ev){
+  ev.preventDefault();
+  const status=$('fStatus').value, stop=(status==='停課');
+  const v=function(id){ return stop?0:$(id).value; };
+  const row={date:$('fDate').value,start:$('fStart').value,end:$('fEnd').value,course:$('fCourse').value.trim(),
+    teacher:$('fTeacher').value.trim(),status:status,reserved:v('fRes'),attend:v('fAtt'),absent:v('fAbs'),late:v('fLate')};
+  try{
+    await api('upsert',{row:JSON.stringify(row), oldKey:S.editing||''});
+    closeEdit(); toast('已儲存'); await load();
+  }catch(e){ toast('儲存失敗：'+e.message); }
+}
+async function deleteEdit(){
+  if(!S.editing) return;
+  if(!confirm('確定要刪除這堂課的紀錄嗎？')) return;
+  try{ await api('delete',{key:S.editing}); closeEdit(); toast('已刪除'); await load(); }
+  catch(e){ toast('刪除失敗：'+e.message); }
+}
+
+// ---- 登入 ----
+function showLogin(msg){ $('loginMsg').textContent=msg||'與 Apps Script「設定 API 密碼」的是同一組。'; $('login').classList.remove('hidden'); $('loginToken').focus(); }
+$('loginForm').addEventListener('submit',function(ev){
+  ev.preventDefault(); S.token=$('loginToken').value.trim(); lsSet('jsd_token',S.token); $('login').classList.add('hidden'); $('loginToken').value=''; load();
+});
+
+// ---- 事件 ----
+document.addEventListener('click',function(ev){
+  const t=ev.target.closest('[data-tab],[data-edit],[data-act]'); if(!t) return;
+  if(t.dataset.tab!==undefined){ S.tab=t.dataset.tab; render(); window.scrollTo(0,0); }
+  else if(t.dataset.edit!==undefined){ openEdit(t.dataset.edit); }
+  else if(t.dataset.act==='exportOne'){ exportOne(); }
+  else if(t.dataset.act==='print'){ window.print(); }
+});
+$('month').value=S.month;
+$('month').addEventListener('change',function(){ if(!this.value) return; S.month=this.value; lsSet('jsd_month',S.month); S.tab='__all__'; load(); });
+$('btnReload').addEventListener('click',load);
+$('btnAdd').addEventListener('click',function(){ openEdit(null); });
+$('btnExportAll').addEventListener('click',exportAll);
+$('btnLogout').addEventListener('click',function(){ S.token=''; lsSet('jsd_token',''); showLogin(''); });
+$('editForm').addEventListener('submit',saveEdit);
+$('btnCancel').addEventListener('click',closeEdit);
+$('btnDelete').addEventListener('click',deleteEdit);
+if(typeof window!=='undefined'&&!window.__NO_AUTOLOAD__) load();
+</script>
+</body>
+</html>
