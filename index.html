@@ -362,7 +362,7 @@ function renderSlip(){
   const g=S.groups.find(function(x){return x.key===S.tab;}); if(!g){ renderAll(); return; }
   const s=slipFor(g);
   let h='<div class="actions"><button class="primary" data-act="exportOne">匯出此老師 Excel</button><button data-act="print">列印 / 存成 PDF</button></div>';
-  h+='<div class="slip" id="slipPrint"><h2>JS DANCE 薪資明細表</h2><div class="slipHead"><dl><dt>場館</dt><dd>JS DANCE GALLERY</dd><dt>老師姓名</dt><dd>'+esc(s.name)+'</dd><dt>計薪期間</dt><dd>'+esc(periodLabel())+'</dd></dl><dl><dt>開課次數</dt><dd>'+s.open+'</dd><dt>停課次數</dt><dd>'+s.suspend+'</dd><dt>代課次數</dt><dd>'+s.sub+'</dd><dt>私課次數</dt><dd>'+s.priv+'</dd></dl><div class="total"><small>總薪資</small>NT$'+fmt(s.total)+'</div></div>';
+  h+='<div class="slip" id="slipPrint"><h2>JS DANCE 薪資明細表</h2><div class="slipHead"><dl><dt>場館</dt><dd>JS DANCE GALLERY</dd><dt>老師姓名</dt><dd>'+esc(s.name)+'</dd><dt>計薪期間</dt><dd>'+esc(periodLabel())+'</dd></dl><dl><dt>開課次數</dt><dd>'+s.open+'</dd><dt>代課次數</dt><dd>'+s.sub+'</dd><dt>私課次數</dt><dd>'+s.priv+'</dd></dl><div class="total"><small>總薪資</small>NT$'+fmt(s.total)+'</div></div>';
   h+='<div class="tbl" style="max-height:none"><table><tr>'+['日期','時間','時數','課程名稱','開課狀態','預約人數','出席人數','缺席人數','遲退人數','薪資','獎金','總額'].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr>';
   s.rows.forEach(function(r){
     const cells=slipRowCells(r);
@@ -384,8 +384,7 @@ function addSlipSheet(wb, slip, period, usedNames){
   const lab=function(a,v){ const c=ws.getCell(a); c.value=v; c.font={bold:true,size:10,name:'Arial'}; c.alignment=center; };
   const val=function(a,v){ const c=ws.getCell(a); c.value=v; c.font={size:10,name:'Arial'}; c.alignment=center; };
   lab('A2','場館'); val('B2','JS DANCE GALLERY'); lab('A3','老師姓名'); val('B3',slip.name); lab('A4','計薪期間'); val('B4',period);
-  lab('G2','開課次數'); val('H2',slip.open); lab('I2','停課次數'); val('J2',slip.suspend);
-  lab('G3','代課次數'); val('H3',slip.sub);  lab('I3','私課次數'); val('J3',slip.priv);
+  lab('G2','開課次數'); val('H2',slip.open); lab('G3','代課次數'); val('H3',slip.sub); lab('I2','私課次數'); val('J2',slip.priv);
   lab('K2','總薪資');
   ws.mergeCells('K3:L4'); const tc=ws.getCell('K3'); tc.value=slip.total; tc.numFmt='"NT$"#,##0'; tc.font={bold:true,size:12,name:'Arial'}; tc.alignment=center;
   ['K3','L3','K4','L4'].forEach(function(a){ ws.getCell(a).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}}; });
