@@ -150,7 +150,7 @@ const CFG = {
   STATUSES: ['開課', '停課', '代課', '私課']
 };
 
-function normName(s){ return String(s==null?'':s).trim().replace(/老師$/,'').toLowerCase(); }
+function normName(s){ const n=String(s==null?'':s).trim().replace(/老師$/,'').toLowerCase(); return n==='黃雅詩'?'雅詩':n; }
 function toNum(v){ if(v===''||v===null||v===undefined||v==='-') return null; const n=Number(v); return isNaN(n)?null:n; }
 function hoursOf(start,end){
   const a=/^(\d{1,2}):(\d{2})/.exec(start||''), b=/^(\d{1,2}):(\d{2})/.exec(end||'');
@@ -208,7 +208,7 @@ function computeRow(r, ctx){
   const hours=isPrivate?1:hoursOf(r.start,r.end);
   let reserved=toNum(r.reserved), attend=toNum(r.attend), absent=toNum(r.absent), late=toNum(r.late);
   let level=(course.indexOf('專攻班')>-1||normName(instructor)===normName(CFG.LIN_TEACHER))?'A+':'A';
-  const isBallet=course.indexOf(CFG.BALLET_KEYWORD)>-1&&normName(instructor)===normName(CFG.BALLET_TEACHER);
+  const isBallet=normName(instructor)===normName(CFG.BALLET_TEACHER);   // 雅詩：只要是她上的課，一律固定鐘點，不看課名、不看人數
 
   let base=0, bonus=0, total=0, countsHidden=false;
   if(status==='停課'){ reserved=attend=absent=late=0; }
